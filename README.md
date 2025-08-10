@@ -646,7 +646,7 @@ public class DataSyncService {
 
 ---
 
-## 🎯 **Summary: Your Framework in a Nutshell**
+## 🎯 **Summary: This Framework in a Nutshell**
 
 ### **🌟 What You Have**
 A **enterprise-grade DML orchestration framework** that provides:
@@ -673,4 +673,4 @@ A **enterprise-grade DML orchestration framework** that provides:
 - **Business-critical operations** needing transaction control
 - **Applications requiring audit trails** and comprehensive logging
 
-**Your framework is a powerful, production-ready solution that handles the complexity of Salesforce DML operations while providing the flexibility and control that enterprise applications require!** 🚀
+**This framework is a powerful, production-ready solution that handles the complexity of Salesforce DML operations while providing the flexibility and control that enterprise applications require!** 🚀
