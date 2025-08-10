@@ -1,0 +1,190 @@
+/**
+ * DmlChunker - Handles chunking of large datasets for DML operations
+ * 
+ * This class is responsible for splitting large datasets into manageable chunks
+ * to avoid governor limits and improve performance.
+ * 
+ * @author DML Utility Team
+ * @version 1.0
+ */
+public class DmlChunker {
+    
+    private Integer chunkSize;
+    
+    /**
+     * Constructor with default chunk size of 100
+     */
+    public DmlChunker() {
+        this.chunkSize = 100;
+    }
+    
+    /**
+     * Constructor with custom chunk size
+     * @param chunkSize The size of each chunk
+     */
+    public DmlChunker(Integer chunkSize) {
+        if (chunkSize == null || chunkSize <= 0) {
+            throw new IllegalArgumentException('Chunk size must be greater than 0, got: ' + chunkSize);
+        }
+        this.chunkSize = chunkSize;
+    }
+    
+    /**
+     * Sets the chunk size
+     * @param chunkSize The size of each chunk
+     * @return DmlChunker This instance for chaining
+     */
+    public DmlChunker setChunkSize(Integer chunkSize) {
+        if (chunkSize == null || chunkSize <= 0) {
+            throw new IllegalArgumentException('Chunk size must be greater than 0, got: ' + chunkSize);
+        }
+        this.chunkSize = chunkSize;
+        return this;
+    }
+    
+    /**
+     * Gets the current chunk size
+     * @return Integer The chunk size
+     */
+    public Integer getChunkSize() {
+        return chunkSize;
+    }
+    
+    /**
+     * Splits a list of records into chunks
+     * @param records The records to split
+     * @return List<List<SObject>> List of chunks
+     */
+    public List<List<SObject>> split(List<SObject> records) {
+        if (records == null || records.isEmpty()) {
+            return new List<List<SObject>>();
+        }
+        
+        // Validate chunk size is valid (should not happen due to constructor/setter validation, but defensive programming)
+        if (chunkSize <= 0) {
+            throw new IllegalArgumentException('Invalid chunk size: ' + chunkSize + '. Chunk size must be greater than 0.');
+        }
+        
+        List<List<SObject>> chunks = new List<List<SObject>>();
+        
+        for (Integer i = 0; i < records.size(); i += chunkSize) {
+            Integer toIndex = Math.min(i + chunkSize, records.size());
+            List<SObject> chunk = new List<SObject>();
+            
+            for (Integer j = i; j < toIndex; j++) {
+                chunk.add(records[j]);
+            }
+            
+            chunks.add(chunk);
+        }
+        
+        return chunks;
+    }
+    
+    /**
+     * Validates that all records in a list are of the same SObject type
+     * @param records The records to validate
+     * @throws DmlException If records are not homogeneous
+     */
+    public void validateHomogeneousRecords(List<SObject> records) {
+        if (records == null || records.isEmpty()) {
+            return;
+        }
+        
+        // Check for null records in the list
+        for (SObject record : records) {
+            if (record == null) {
+                throw new IllegalArgumentException('Records list cannot contain null elements.');
+            }
+        }
+        
+        // Get expected type from first record (we know it's not null from the loop above)
+        Schema.SObjectType expectedType = records[0].getSObjectType();
+        
+        for (SObject record : records) {
+            if (record.getSObjectType() != expectedType) {
+                throw new DmlException('All records must be of the same SObject type.');
+            }
+        }
+    }
+    
+    /**
+     * Groups records by SObject type for heterogeneous operations
+     * @param records The records to group
+     * @return Map<Schema.SObjectType, List<SObject>> Records grouped by type
+     */
+    public Map<Schema.SObjectType, List<SObject>> groupRecordsByType(List<SObject> records) {
+        Map<Schema.SObjectType, List<SObject>> groupedRecords = new Map<Schema.SObjectType, List<SObject>>();
+        
+        if (records == null || records.isEmpty()) {
+            return groupedRecords;
+        }
+        
+        // Check for null records in the list
+        for (SObject record : records) {
+            if (record == null) {
+                throw new IllegalArgumentException('Records list cannot contain null elements.');
+            }
+        }
+        
+        // Group records by their SObject type
+        for (SObject record : records) {
+            Schema.SObjectType recordType = record.getSObjectType();
+            
+            if (!groupedRecords.containsKey(recordType)) {
+                groupedRecords.put(recordType, new List<SObject>());
+            }
+            
+            groupedRecords.get(recordType).add(record);
+        }
+        
+        return groupedRecords;
+    }
+    
+    /**
+     * Splits heterogeneous records into chunks, maintaining type grouping
+     * @param records The records to split, grouped by type
+     * @return Map<Schema.SObjectType, List<List<SObject>>> Chunked records grouped by type
+     */
+    public Map<Schema.SObjectType, List<List<SObject>>> splitHeterogeneous(Map<Schema.SObjectType, List<SObject>> groupedRecords) {
+        Map<Schema.SObjectType, List<List<SObject>>> result = new Map<Schema.SObjectType, List<List<SObject>>>();
+        
+        if (groupedRecords == null || groupedRecords.isEmpty()) {
+            return result;
+        }
+        
+        // Split each type group into chunks
+        for (Schema.SObjectType recordType : groupedRecords.keySet()) {
+            List<SObject> recordsOfType = groupedRecords.get(recordType);
+            List<List<SObject>> chunksOfType = split(recordsOfType);
+            result.put(recordType, chunksOfType);
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Gets the number of chunks that would be created for a given number of records
+     * @param recordCount The number of records
+     * @return Integer The number of chunks
+     */
+    public Integer getChunkCount(Integer recordCount) {
+        if (recordCount == 0) return 0;
+        return Math.ceil(recordCount / (Double)chunkSize).intValue();
+    }
+    
+    /**
+     * Gets the optimal chunk size based on governor limits
+     * @return Integer The optimal chunk size
+     */
+    public static Integer getOptimalChunkSize() {
+        // Consider DML governor limits (10,000 records per transaction)
+        // and heap size limits
+        return 100;
+    }
+    
+    /**
+     * Exception thrown for DML-related errors
+     */
+    public class DmlException extends Exception {}
+}
